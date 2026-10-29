@@ -70,12 +70,12 @@ project-design/
    start.bat
    
    # Linux/Mac
-   uvicorn server:app --host 0.0.0.0 --port 5000
+   python server.py            # порт из PORT, по умолчанию 8000
    ```
 
 4. **Откройте в браузере**
    ```
-   http://localhost:5000
+   http://localhost:8000
    ```
 
 ### Деплой на Render.com
@@ -132,7 +132,7 @@ MIT License - свободное использование
 make doctor     # инструменты, зависимости, секреты в коде, порт
 make install    # закреплённые зависимости (requirements-dev.txt)
 make test       # 15 тестов: аутентификация, квиз, защитные свойства
-make run        # uvicorn на 8000
+make run        # сервер на 8000 (порт задаётся переменной PORT)
 make smoke-test # проверка живого инстанса
 ```
 
