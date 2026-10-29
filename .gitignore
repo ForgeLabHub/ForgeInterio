@@ -10,3 +10,6 @@ data.db-journal
 .coverage
 htmlcov/
 .DS_Store
+
+# Состояние forge.sh/forge.bat: PID-файлы и логи запусков
+.run/
