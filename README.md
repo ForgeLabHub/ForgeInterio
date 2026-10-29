@@ -70,12 +70,12 @@ project-design/
    start.bat
    
    # Linux/Mac
-   uvicorn server:app --host 0.0.0.0 --port 5000
+   python server.py            # порт из PORT, по умолчанию 8000
    ```
 
 4. **Откройте в браузере**
    ```
-   http://localhost:5000
+   http://localhost:8000
    ```
 
 ### Деплой на Render.com
@@ -126,3 +126,20 @@ project-design/
 
 MIT License - свободное использование
 
+## Быстрая проверка и запуск
+
+```bash
+make doctor     # инструменты, зависимости, секреты в коде, порт
+make install    # закреплённые зависимости (requirements-dev.txt)
+make test       # 15 тестов: аутентификация, квиз, защитные свойства
+make run        # сервер на 8000 (порт задаётся переменной PORT)
+make smoke-test # проверка живого инстанса
+```
+
+Документация: [docs/index.md](docs/index.md) · сборка [BUILD.md](BUILD.md) ·
+матрица проверок [docs/verification/matrix.md](docs/verification/matrix.md).
+
+> **Безопасность.** Пароль приложения Gmail, который раньше был зашит в `server.py`,
+> удалён, админ-код теперь берётся из `ADMIN_CODE` (без него админ-вход отвечает 503),
+> CORS настраивается окружением. **Отзовите старый пароль Gmail** и задайте
+> `ADMIN_CODE` — см. [docs/security/secrets.md](docs/security/secrets.md).
