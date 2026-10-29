@@ -22,6 +22,8 @@ install: ## Установить закреплённые зависимости
 test: ## Тесты (аутентификация, квиз, безопасность)
 	$(PYTHON) -m pytest -q
 
+check: lint test docs-check ## Полная локальная проверка (lint + test + docs)
+
 lint: ## ruff
 	$(PYTHON) -m ruff check server.py tests
 
