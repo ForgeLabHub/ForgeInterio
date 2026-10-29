@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  tests:
+    name: Tests and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: python -m ruff check server.py tests
+      - name: Tests
+        run: python -m pytest -q
+      - name: No secrets in the source
+        run: |
+          if grep -q 'xtsdtjlhsantqhqi' server.py; then
+            echo "в коде найден пароль приложения Gmail" >&2; exit 1
+          fi
+          if grep -qE 'ADMIN_CODE\s*=\s*"' server.py; then
+            echo "код админ-доступа захардкожен" >&2; exit 1
+          fi
+
+  runtime:
+    name: Runs without optional configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Start with no secrets at all
+        env:
+          DB_PATH: /tmp/interio-ci.db
+          ENV: test
+          KEEP_ALIVE_ENABLED: "false"
+        run: |
+          nohup python server.py > /tmp/interio.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/ >/dev/null 2>&1 && break
+            sleep 1
+          done
+          ./scripts/smoke-test.sh http://127.0.0.1:8000
+          # админ-вход обязан честно отказать, а не пустить без кода
+          status="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' -d '{"code":"ADMIN123"}' \
+            http://127.0.0.1:8000/api/auth/admin-login)"
+          echo "admin-login без конфигурации: $status"
+          test "$status" = "503"
+
+  docs:
+    name: Documentation is complete and linked
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Structural checks
+        run: ./scripts/docs-check.sh

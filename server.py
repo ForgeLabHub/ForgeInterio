@@ -22,19 +22,24 @@ app = FastAPI(title="Auth API", version="1.0.0")
 # Подключение статических файлов
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# CORS настройки
+# CORS настройки.
+#
+# Раньше здесь стояли allow_origins=["*"] вместе с allow_credentials=True и
+# allow_origin_regex=".*". Комбинация "*" + credentials небезопасна: она либо
+# отвергается браузером, либо (при regex) разрешает любой источник присылать
+# cookie-сессии. Теперь список источников задаётся окружением, а по умолчанию
+# запросы разрешены только с того же origin (фронтенд отдаёт это же приложение).
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    allow_origin_regex=".*",
-    expose_headers=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Requested-With"],
 )
 
-# Путь к базе данных
-DB_PATH = 'data.db'
+# Путь к базе данных задаётся окружением: тесты и CI не должны трогать рабочую БД.
+DB_PATH = os.environ.get("DB_PATH", "data.db")
 
 def keep_alive():
     """Функция для поддержания активности приложения"""
@@ -50,14 +55,25 @@ def keep_alive():
             print(f"❌ Keep-alive ping failed: {str(e)}")
         time.sleep(300)  # 5 минут
 
-# Запуск keep-alive в фоновом потоке
-threading.Thread(target=keep_alive, daemon=True).start()
+# Keep-alive нужен только на бесплатном хостинге, который усыпляет приложение.
+# В тестах и в CI он не должен ходить в сеть, поэтому включается явно.
+KEEP_ALIVE_ENABLED = os.environ.get("KEEP_ALIVE_ENABLED", "false").lower() in {"1", "true", "yes"}
+if KEEP_ALIVE_ENABLED and os.environ.get("ENV", "development") != "test":
+    threading.Thread(target=keep_alive, daemon=True).start()
 
 # Настройки SMTP для автоматической рассылки
+# SMTP: адрес сервера можно задать по умолчанию, учётные данные — только из
+# окружения. Раньше здесь лежал рабочий пароль приложения Gmail; секреты в коде
+# недопустимы, а отсутствие конфигурации должно отключать почту, а не ломать старт.
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", 465))
-SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "interiopersonal@gmail.com")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "xtsdtjlhsantqhqi")
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+
+
+def email_configured() -> bool:
+    """Почта работает только при полной конфигурации."""
+    return bool(SMTP_USERNAME and SMTP_PASSWORD)
 
 # Pydantic модели
 class PhoneCheckRequest(BaseModel):
@@ -138,6 +154,9 @@ def send_quiz_email(recipient_email: str, data: QuizSubmissionRequest):
         )
         
         # Отправляем письмо через SMTP
+        if not email_configured():
+            print("SMTP не настроен: письмо не отправлено")
+            return False
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
@@ -406,9 +425,16 @@ async def register(request: RegisterRequest, response: Response):
 async def admin_login(request: AdminLoginRequest, http_request: Request, response: Response):
     """Вход в админ панель по коду"""
     try:
-        ADMIN_CODE = "ADMIN123"  # В реальном проекте вынести в env
-        
-        if request.code != ADMIN_CODE:
+        # Код админ-доступа задаётся окружением. Раньше он был захардкожен
+        # ("ADMIN123") и повышал до администратора любого вошедшего пользователя —
+        # это была возможность эскалации привилегий в открытом виде.
+        admin_code = os.environ.get("ADMIN_CODE", "")
+        if not admin_code:
+            raise HTTPException(
+                status_code=503,
+                detail="Админ-вход не настроен: задайте ADMIN_CODE в окружении",
+            )
+        if not secrets.compare_digest(request.code, admin_code):
             raise HTTPException(status_code=401, detail="Неверный код")
         
         # Получаем текущего пользователя
