@@ -12,6 +12,7 @@
 | **Секреты: что было исправлено** | [security/secrets.md](security/secrets.md) |
 | Чем доказано, что работает | [verification/matrix.md](verification/matrix.md), CI |
 | Что исправлено при аудите | [audit/portability-audit-2026-10-29.md](audit/portability-audit-2026-10-29.md) |
+| English version | [en/index.md](en/index.md) · PDF в [pdf/](pdf/) |
 
 ## Правила
 
@@ -19,9 +20,9 @@
 2. Секретов в коде нет. Конфигурация — только через окружение (`../.env.example`).
 3. Тесты не ходят в сеть и не используют рабочую базу: `DB_PATH` подменяется в
    `tests/conftest.py`, `KEEP_ALIVE_ENABLED=false`.
-4. Приложение остаётся одним файлом `server.py` осознанно: разделение на модули
-   описано в [architecture/system-context.md](architecture/system-context.md) и будет
-   выполнено отдельным шагом, когда появится второй потребитель логики.
+4. Код разложен по модулям в пакете `app/` (`config`, `db`, `security`, `mailer`,
+   `models`, `routers/*`); `server.py` — только сборка и запуск. Что и откуда
+   заимствовать в другой проект: [modules/module-map.md](modules/module-map.md).
 
 ## Управление проектом
 

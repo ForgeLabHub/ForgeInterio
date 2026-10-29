@@ -7,7 +7,7 @@ PYTHON ?= python3
 PORT   ?= 8000
 BASE_URL ?= http://localhost:$(PORT)
 
-.PHONY: help doctor install test lint run smoke-test docs-check verify clean
+.PHONY: help doctor install test lint run smoke-test docs-check docs-pdf verify clean
 
 help: ## Список целей
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -25,7 +25,7 @@ test: ## Тесты (аутентификация, квиз, безопасно�
 check: lint test docs-check ## Полная локальная проверка (lint + test + docs)
 
 lint: ## ruff
-	$(PYTHON) -m ruff check server.py tests
+	$(PYTHON) -m ruff check app server.py tests tools
 
 run: ## Запустить приложение
 	$(PYTHON) server.py
@@ -33,8 +33,12 @@ run: ## Запустить приложение
 smoke-test: ## Проверить живой инстанс
 	@./scripts/smoke-test.sh $(BASE_URL)
 
-docs-check: ## Проверить документацию и спецификации модулей
+docs-pdf: ## Собрать PDF документации (оба языка)
+	@$(PYTHON) tools/docs_pdf.py
+
+docs-check: ## Проверить документацию, переводы и PDF
 	@./scripts/docs-check.sh
+	@$(PYTHON) tools/docs_pdf.py --check
 
 verify: lint test docs-check ## Локальная матрица
 	@echo "verify: ok"
