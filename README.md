@@ -126,3 +126,20 @@ project-design/
 
 MIT License - свободное использование
 
+## Быстрая проверка и запуск
+
+```bash
+make doctor     # инструменты, зависимости, секреты в коде, порт
+make install    # закреплённые зависимости (requirements-dev.txt)
+make test       # 15 тестов: аутентификация, квиз, защитные свойства
+make run        # uvicorn на 8000
+make smoke-test # проверка живого инстанса
+```
+
+Документация: [docs/index.md](docs/index.md) · сборка [BUILD.md](BUILD.md) ·
+матрица проверок [docs/verification/matrix.md](docs/verification/matrix.md).
+
+> **Безопасность.** Пароль приложения Gmail, который раньше был зашит в `server.py`,
+> удалён, админ-код теперь берётся из `ADMIN_CODE` (без него админ-вход отвечает 503),
+> CORS настраивается окружением. **Отзовите старый пароль Gmail** и задайте
+> `ADMIN_CODE` — см. [docs/security/secrets.md](docs/security/secrets.md).
