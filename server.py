@@ -1,21 +1,20 @@
-from fastapi import FastAPI, HTTPException, Request, Response, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
-from pydantic import BaseModel
-from typing import Optional, List
-import sqlite3
+import hashlib
+import os
 import re
 import secrets
-import hashlib
-import datetime
-import threading
-import requests
-import time
-import uvicorn
-import os
 import smtplib
+import sqlite3
+import threading
+import time
 from email.message import EmailMessage
+
+import requests
+import uvicorn
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 app = FastAPI(title="Auth API", version="1.0.0")
 
@@ -52,7 +51,7 @@ def keep_alive():
             else:
                 print(f"⚠️ Keep-alive ping warning: {response.status_code}")
         except Exception as e:
-            print(f"❌ Keep-alive ping failed: {str(e)}")
+            print(f"❌ Keep-alive ping failed: {e!s}")
         time.sleep(300)  # 5 минут
 
 # Keep-alive нужен только на бесплатном хостинге, который усыпляет приложение.
@@ -119,8 +118,8 @@ def send_quiz_email(recipient_email: str, data: QuizSubmissionRequest):
         
     try:
         # Формируем текст файла
-        content = f"Заявка на дизайн-проект\n"
-        content += f"========================\n\n"
+        content = "Заявка на дизайн-проект\n"
+        content += "========================\n\n"
         content += f"Имя: {data.name}\n"
         content += f"Телефон: {data.phone}\n"
         content += f"Email: {data.email}\n"
@@ -643,8 +642,8 @@ async def submit_quiz(request: QuizSubmissionRequest, http_request: Request, bac
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Ошибка при сохранении заявки квиза: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении заявки: {str(e)}")
+        print(f"Ошибка при сохранении заявки квиза: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении заявки: {e!s}")
 
 @app.get("/api/quiz/submissions")
 async def get_quiz_submissions():
@@ -750,4 +749,13 @@ async def quiz():
     return FileResponse("templates/quiz.html")
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=5000, reload=True)
+    # Хост и порт — из окружения, а не из кода: так приложение запускается
+    # одинаково локально, в CI и на платформе, которая сама назначает PORT
+    # (Render, Railway, любой контейнер). RELOAD=1 включает автоперезагрузку
+    # только для разработки — в CI и в проде она лишняя и мешает остановке.
+    uvicorn.run(
+        "server:app",
+        host=os.environ.get("HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT", "8000")),
+        reload=os.environ.get("RELOAD", "0") == "1",
+    )

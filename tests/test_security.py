@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 import re
 
-import server  # noqa: E402  (импорт после настройки окружения)
+import server
 
 
 def test_smtp_credentials_have_no_hardcoded_defaults():
